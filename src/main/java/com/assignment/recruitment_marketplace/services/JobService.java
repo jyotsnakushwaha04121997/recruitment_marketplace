@@ -11,9 +11,11 @@ import com.assignment.recruitment_marketplace.entities.Organization;
 import com.assignment.recruitment_marketplace.mapper.RecruitmentMapper;
 import com.assignment.recruitment_marketplace.repositories.JobRepository;
 import com.assignment.recruitment_marketplace.repositories.OrganizationRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 /**
- * Service for Job management.
+ * Job service with pageable search.
  */
 @Service
 public class JobService {
@@ -29,20 +31,23 @@ public class JobService {
 
     public JobDto create(JobDto dto) {
         Organization org = orgRepo.findById(dto.getOrganizationId())
-                .orElseThrow(() -> new RuntimeException("Organization not found"));
-        Job entity = mapper.toEntity(dto);
-        entity.setOrganization(org);
-        Job saved = jobRepo.save(entity);
+                .orElseThrow(() -> new IllegalArgumentException("Organization not found: " + dto.getOrganizationId()));
+        Job job = mapper.toEntity(dto);
+        job.setOrganization(org);
+        Job saved = jobRepo.save(job);
         return mapper.toDto(saved);
     }
 
-    public List<JobDto> findAll() {
-        return jobRepo.findAll().stream().map(mapper::toDto).collect(Collectors.toList());
+    public Page<JobDto> searchBySkill(String skill, Pageable pageable) {
+        // If skill is null or empty, return all jobs as page
+        if (skill == null || skill.isBlank()) {
+            return jobRepo.findAll(pageable).map(mapper::toDto);
+        }
+        return jobRepo.findByRequiredSkillsContainingIgnoreCase(skill, pageable).map(mapper::toDto);
     }
 
-    public List<JobDto> searchBySkill(String skill) {
-        return jobRepo.findBySkillContainingIgnoreCase(skill)
-                      .stream().map(mapper::toDto).collect(Collectors.toList());
+    public Page<JobDto> findByOrganization(Long orgId, Pageable pageable) {
+    	return jobRepo.findByOrganizationId(orgId, pageable).map(mapper::toDto);
     }
 }
 
